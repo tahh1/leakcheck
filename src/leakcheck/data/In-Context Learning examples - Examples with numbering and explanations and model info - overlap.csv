@@ -1,0 +1,2128 @@
+Id,Cluster,Sub Cluster,Method,Leak,New explanation,Model info,Explanation - Non leak,Fix
+1,Oversampling/resampling,Oversampling/resampling,RandomOverSampler," 1 # Load dataset
+ 2 df = pd.read_csv(""creditcard.csv"")  # Example fraud detection dataset
+ 3 X = df.drop(columns=['Class'])
+ 4 y = df['Class']
+ 5 
+ 6 # ❌ Leakage: Oversampling applied BEFORE the train-test split
+ 7 from imblearn.over_sampling import RandomOverSampler
+ 8 ros = RandomOverSampler(random_state=42)
+ 9 X_res, y_res = ros.fit_resample(X, y)  # <-- Test data already influenced
+10 
+11 # Now we split the resampled dataset (already contaminated)
+12 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.3, random_state=42)
+13 
+14 from sklearn.linear_model import LogisticRegression
+15 model = LogisticRegression(max_iter=1000)
+16 model.fit(X_train, y_train)
+17 print(""Accuracy:"", model.score(X_test, y_test))  # Inflated due to leakage
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 9,
+      ""explanation"": ""Resampling applied before the train-test split, contaminating both training and test data.""
+    },
+    {
+      ""line_number"": 12,
+      ""explanation"": ""Train-test split occurs after resampling, so augmented samples leak into both sets.""
+    },
+    {
+      ""line_number"": 16,
+      ""explanation"": ""Model is trained on data already contaminated by resampling.""
+    },
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Model is evaluated on test data that was influenced by resampling.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 16]
+[Testing method: score, Testing line: 17]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+2,Oversampling/resampling,Oversampling/resampling,SMOTE," 1 df = pd.read_csv(""diabetes.csv"")  # Columns: Glucose, BMI, Outcome
+ 2 X = df.drop(columns=['Outcome'])
+ 3 y = df['Outcome']
+ 4 
+ 5 # ❌ Leakage: SMOTE applied before splitting
+ 6 from imblearn.over_sampling import SMOTE
+ 7 smote = SMOTE(random_state=0)
+ 8 X_res, y_res = smote.fit_resample(X, y)  # Synthetic samples contaminate test set
+ 9 
+10 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.25, random_state=42)
+11 
+12 from sklearn.tree import DecisionTreeClassifier
+13 clf = DecisionTreeClassifier()
+14 clf.fit(X_train, y_train)
+15 print(""Test Score:"", clf.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 8,
+      ""explanation"": ""SMOTE is applied to the entire dataset before the split, generating synthetic samples influenced by future test data.""
+    },
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Train-test split occurs after oversampling, so both training and testing sets contain related synthetic samples.""
+    },
+    {
+      ""line_number"": 14,
+      ""explanation"": ""Model is trained on contaminated training data that already includes test-influenced synthetic points.""
+    },
+    {
+      ""line_number"": 15,
+      ""explanation"": ""Model is evaluated on a test set that shares synthetic samples with the training set, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 14]
+[Testing method: score, Testing line: 15]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+3,Oversampling/resampling,Oversampling/resampling,ADASYN," 1 df = pd.read_csv(""heart.csv"")  # Columns: age, chol, target
+ 2 X = df[['age', 'chol']]
+ 3 y = df['target']
+ 4 
+ 5 # ❌ Leakage: ADASYN applied globally
+ 6 from imblearn.over_sampling import ADASYN
+ 7 ada = ADASYN(random_state=1)
+ 8 X_res, y_res = ada.fit_resample(X, y)  # Synthetic points influence test distribution
+ 9 
+10 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.3, random_state=0)
+11 
+12 from sklearn.svm import SVC
+13 model = SVC()
+14 model.fit(X_train, y_train)
+15 print(""Accuracy:"", model.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 8,
+      ""explanation"": ""ADASYN is applied to the full dataset before the split, creating synthetic data points influenced by test distribution.""
+    },
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Train-test split happens after oversampling, so train and test share related synthetic samples.""
+    },
+    {
+      ""line_number"": 14,
+      ""explanation"": ""Model is trained on contaminated training data containing test-influenced synthetic samples.""
+    },
+    {
+      ""line_number"": 15,
+      ""explanation"": ""Model is evaluated on test data that overlaps with synthetic samples in training, giving misleading results.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 14]
+[Testing method: score, Testing line: 15]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+4,Oversampling/resampling,Oversampling/resampling,KMeansSMOTE," 1 df = pd.read_csv(""bank.csv"")  # Marketing campaign dataset
+ 2 X = df.drop(columns=['y'])
+ 3 y = df['y']
+ 4 
+ 5 # ❌ Leakage: KMeansSMOTE before splitting
+ 6 from imblearn.over_sampling import KMeansSMOTE
+ 7 ksmote = KMeansSMOTE(random_state=42)
+ 8 X_res, y_res = ksmote.fit_resample(X, y)  # Clustering used test data too
+ 9 
+10 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.3, random_state=1)
+11 
+12 from sklearn.naive_bayes import GaussianNB
+13 model = GaussianNB()
+14 model.fit(X_train, y_train)
+15 print(""Test Accuracy:"", model.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 8,
+      ""explanation"": ""KMeansSMOTE is applied to the full dataset before the train-test split, allowing synthetic samples influenced by test data to contaminate training.""
+    },
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Train-test split is performed after oversampling, so both sets contain related synthetic samples.""
+    },
+    {
+      ""line_number"": 14,
+      ""explanation"": ""Model is trained on training data already contaminated with test-influenced synthetic samples.""
+    },
+    {
+      ""line_number"": 15,
+      ""explanation"": ""Model is evaluated on a test set that shares synthetic samples with the training set, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 14]
+[Testing method: score, Testing line: 15]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+5,Oversampling/resampling,Oversampling/resampling,BorderlineSMOTE," 1 # Load dataset
+ 2 df = pd.read_csv(""cancer.csv"")  # Assume binary classification dataset
+ 3 X = df.drop(columns=['diagnosis'])
+ 4 y = df['diagnosis']
+ 5 
+ 6 # ❌ Leakage: BorderlineSMOTE applied BEFORE the train-test split
+ 7 from imblearn.over_sampling import BorderlineSMOTE
+ 8 bsmote = BorderlineSMOTE(random_state=42)
+ 9 X_res, y_res = bsmote.fit_resample(X, y)  # <-- Synthetic samples based on test data too
+10 
+11 # Splitting AFTER augmentation contaminates test data
+12 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.3, random_state=0)
+13 
+14 from sklearn.ensemble import GradientBoostingClassifier
+15 model = GradientBoostingClassifier()
+16 model.fit(X_train, y_train)
+17 print(""Accuracy:"", model.score(X_test, y_test))  # Inflated by leakage
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 9,
+      ""explanation"": ""BorderlineSMOTE is applied to the entire dataset before splitting, generating synthetic samples influenced by future test data.""
+    },
+    {
+      ""line_number"": 12,
+      ""explanation"": ""Train-test split happens after augmentation, so both training and test sets contain related synthetic samples.""
+    },
+    {
+      ""line_number"": 16,
+      ""explanation"": ""Model is trained on contaminated training data that already includes test-influenced synthetic points.""
+    },
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with synthetic samples in training, giving misleading results.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 16]
+[Testing method: score, Testing line: 17]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+6,Oversampling/resampling,Oversampling/resampling,SVMSMOTE," 1 df = pd.read_csv(""imbalanced.csv"")  # Dataset with severe imbalance
+ 2 X = df.drop(columns=['target'])
+ 3 y = df['target']
+ 4 
+ 5 # ❌ Leakage: SVMSMOTE applied globally before splitting
+ 6 from imblearn.over_sampling import SVMSMOTE
+ 7 svmsmote = SVMSMOTE(random_state=1)
+ 8 X_res, y_res = svmsmote.fit_resample(X, y)  # <-- Uses all data, including future test set
+ 9 
+10 # Split AFTER augmentation (wrong order)
+11 X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.25, random_state=42)
+12 
+13 from sklearn.svm import SVC
+14 model = SVC()
+15 model.fit(X_train, y_train)
+16 print(""Test Score:"", model.score(X_test, y_test))  # Looks good but is leaky
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 8,
+      ""explanation"": ""SVMSMOTE is applied to the full dataset before splitting, creating synthetic data points influenced by test distribution.""
+    },
+    {
+      ""line_number"": 11,
+      ""explanation"": ""Train-test split occurs after oversampling, so train and test share related synthetic samples.""
+    },
+    {
+      ""line_number"": 15,
+      ""explanation"": ""Model is trained on training data contaminated with synthetic samples influenced by test data.""
+    },
+    {
+      ""line_number"": 16,
+      ""explanation"": ""Model is evaluated on test data that shares synthetic samples with training, inflating results.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 15]
+[Testing method: score, Testing line: 16]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+7,Data augmentation,Data augmentation,RandomHorizontalFlip," 1 import pandas as pd
+ 2 from torchvision import datasets, transforms
+ 3 from torch.utils.data import DataLoader, Subset
+ 4 from sklearn.model_selection import train_test_split
+ 5 import torch.nn as nn, torch.optim as optim
+ 6 
+ 7 df = pd.read_csv(""images.csv"")  # Contains file paths and labels
+ 8 
+ 9 # ❌ Leakage: Augmentations applied BEFORE splitting
+10 transform = transforms.Compose([
+11     transforms.RandomHorizontalFlip(),
+12     transforms.RandomRotation(30),
+13     transforms.ColorJitter(brightness=0.5, contrast=0.5),
+14     transforms.Resize((64, 64)),
+15     transforms.ToTensor(),
+16 ])
+17 dataset = datasets.ImageFolder(""images/"", transform=transform)
+18 
+19 train_idx, test_idx = train_test_split(range(len(dataset)), test_size=0.3, random_state=42)
+20 train_loader = DataLoader(Subset(dataset, train_idx), batch_size=32, shuffle=True)
+21 test_loader  = DataLoader(Subset(dataset, test_idx), batch_size=32)
+22 
+23 # Simple model trained on contaminated data
+24 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+25 optim_ = optim.SGD(model.parameters(), lr=0.01)
+26 for X, y in train_loader:
+27     optim_.zero_grad(); out = model(X); loss = nn.CrossEntropyLoss()(out, y)
+28     loss.backward(); optim_.step()
+29 
+30 # Evaluation (inflated due to leakage)
+31 acc = sum((model(X).argmax(1) == y).sum().item() for X, y in test_loader)
+32 print(""Accuracy:"", acc / len(test_idx))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied globally before the split, so both training and test sets contain transformed versions of the same images.""
+    },
+    {
+      ""line_number"": 19,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicates across splits.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training data, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit/optimization loop, Training lines: 26–28]
+[Testing method: evaluation loop, Testing line: 31]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+8,Data augmentation,Data augmentation,RandomVerticalFlip," 1 import pandas as pd
+ 2 from torchvision import datasets, transforms
+ 3 from torch.utils.data import DataLoader, Subset
+ 4 from sklearn.model_selection import train_test_split
+ 5 import torch.nn as nn, torch.optim as optim
+ 6 
+ 7 df = pd.read_csv(""images.csv"")  # Contains file paths and labels
+ 8 
+ 9 # ❌ Leakage: Augmentations applied BEFORE splitting
+10 transform = transforms.Compose([
+11     transforms.RandomHorizontalFlip(),
+12     transforms.RandomRotation(30),
+13     transforms.ColorJitter(brightness=0.5, contrast=0.5),
+14     transforms.Resize((64, 64)),
+15     transforms.ToTensor(),
+16 ])
+17 dataset = datasets.ImageFolder(""images/"", transform=transform)
+18 
+19 train_idx, test_idx = train_test_split(range(len(dataset)), test_size=0.3, random_state=42)
+20 train_loader = DataLoader(Subset(dataset, train_idx), batch_size=32, shuffle=True)
+21 test_loader  = DataLoader(Subset(dataset, test_idx), batch_size=32)
+22 
+23 # Simple model trained on contaminated data
+24 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+25 optim_ = optim.SGD(model.parameters(), lr=0.01)
+26 for X, y in train_loader:
+27     optim_.zero_grad(); out = model(X); loss = nn.CrossEntropyLoss()(out, y)
+28     loss.backward(); optim_.step()
+29 
+30 # Evaluation (inflated due to leakage)
+31 acc = sum((model(X).argmax(1) == y).sum().item() for X, y in test_loader)
+32 print(""Accuracy:"", acc / len(test_idx))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied globally before the split, so both training and test sets contain transformed versions of the same images.""
+    },
+    {
+      ""line_number"": 19,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicates across splits.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training data, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit/optimization loop, Training lines: 26–28]
+[Testing method: evaluation loop, Testing line: 31]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+9,Data augmentation,Data augmentation,RandomRotation," 1 import pandas as pd
+ 2 from torchvision import datasets, transforms
+ 3 from torch.utils.data import DataLoader, Subset
+ 4 from sklearn.model_selection import train_test_split
+ 5 import torch.nn as nn, torch.optim as optim
+ 6 
+ 7 df = pd.read_csv(""images.csv"")  # Contains file paths and labels
+ 8 
+ 9 # ❌ Leakage: Augmentations applied BEFORE splitting
+10 transform = transforms.Compose([
+11     transforms.RandomHorizontalFlip(),
+12     transforms.RandomRotation(30),
+13     transforms.ColorJitter(brightness=0.5, contrast=0.5),
+14     transforms.Resize((64, 64)),
+15     transforms.ToTensor(),
+16 ])
+17 dataset = datasets.ImageFolder(""images/"", transform=transform)
+18 
+19 train_idx, test_idx = train_test_split(range(len(dataset)), test_size=0.3, random_state=42)
+20 train_loader = DataLoader(Subset(dataset, train_idx), batch_size=32, shuffle=True)
+21 test_loader  = DataLoader(Subset(dataset, test_idx), batch_size=32)
+22 
+23 # Simple model trained on contaminated data
+24 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+25 optim_ = optim.SGD(model.parameters(), lr=0.01)
+26 for X, y in train_loader:
+27     optim_.zero_grad(); out = model(X); loss = nn.CrossEntropyLoss()(out, y)
+28     loss.backward(); optim_.step()
+29 
+30 # Evaluation (inflated due to leakage)
+31 acc = sum((model(X).argmax(1) == y).sum().item() for X, y in test_loader)
+32 print(""Accuracy:"", acc / len(test_idx))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied globally before the split, so both training and test sets contain transformed versions of the same images.""
+    },
+    {
+      ""line_number"": 19,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicates across splits.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training data, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit/optimization loop, Training lines: 26–28]
+[Testing method: evaluation loop, Testing line: 31]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+10,Data augmentation,Data augmentation,ColorJitter," 1 import pandas as pd
+ 2 from torchvision import datasets, transforms
+ 3 from torch.utils.data import DataLoader, Subset
+ 4 from sklearn.model_selection import train_test_split
+ 5 import torch.nn as nn, torch.optim as optim
+ 6 
+ 7 df = pd.read_csv(""images.csv"")  # Contains file paths and labels
+ 8 
+ 9 # ❌ Leakage: Augmentations applied BEFORE splitting
+10 transform = transforms.Compose([
+11     transforms.RandomHorizontalFlip(),
+12     transforms.RandomRotation(30),
+13     transforms.ColorJitter(brightness=0.5, contrast=0.5),
+14     transforms.Resize((64, 64)),
+15     transforms.ToTensor(),
+16 ])
+17 dataset = datasets.ImageFolder(""images/"", transform=transform)
+18 
+19 train_idx, test_idx = train_test_split(range(len(dataset)), test_size=0.3, random_state=42)
+20 train_loader = DataLoader(Subset(dataset, train_idx), batch_size=32, shuffle=True)
+21 test_loader  = DataLoader(Subset(dataset, test_idx), batch_size=32)
+22 
+23 # Simple model trained on contaminated data
+24 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+25 optim_ = optim.SGD(model.parameters(), lr=0.01)
+26 for X, y in train_loader:
+27     optim_.zero_grad(); out = model(X); loss = nn.CrossEntropyLoss()(out, y)
+28     loss.backward(); optim_.step()
+29 
+30 # Evaluation (inflated due to leakage)
+31 acc = sum((model(X).argmax(1) == y).sum().item() for X, y in test_loader)
+32 print(""Accuracy:"", acc / len(test_idx))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied globally before the split, so both training and test sets contain transformed versions of the same images.""
+    },
+    {
+      ""line_number"": 19,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicates across splits.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training data, inflating performance.""
+    }
+  ]
+}
+","[Training method: fit/optimization loop, Training lines: 26–28]
+[Testing method: evaluation loop, Testing line: 31]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+11,Data augmentation,Data augmentation,RandomResizedCrop," 1 import albumentations as A
+ 2 import cv2
+ 3 import torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 8 labels = [0, 1, 0, 1]
+ 9 
+10 # ❌ Leakage: Apply augmentation to ALL images before splitting
+11 transform = A.Compose([
+12     A.RandomResizedCrop(64, 64),
+13     A.RandomPerspective(),
+14     A.RandomBrightnessContrast(),
+15     A.HueSaturationValue(),
+16 ])
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train = torch.tensor(y_train); y_test = torch.tensor(y_test)
+24 
+25 # Train a small model
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train); loss = nn.CrossEntropyLoss()(out, y_train)
+30     loss.backward(); optim_.step()
+31 
+32 # Evaluation (contaminated)
+33 preds = model(X_test).argmax(1)
+34 print(""Accuracy:"", (preds == y_test).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied to the entire dataset before splitting, so test images are already transformed along with training images.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split happens after augmentation, causing near-duplicate images to appear across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 33,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 33–34]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+12,Data augmentation,Data augmentation,RandomAffine," 1 import albumentations as A
+ 2 import cv2
+ 3 import torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 8 labels = [0, 1, 0, 1]
+ 9 
+10 # ❌ Leakage: Apply augmentation to ALL images before splitting
+11 transform = A.Compose([
+12     A.RandomResizedCrop(64, 64),
+13     A.RandomPerspective(),
+14     A.RandomBrightnessContrast(),
+15     A.HueSaturationValue(),
+16 ])
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train = torch.tensor(y_train); y_test = torch.tensor(y_test)
+24 
+25 # Train a small model
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train); loss = nn.CrossEntropyLoss()(out, y_train)
+30     loss.backward(); optim_.step()
+31 
+32 # Evaluation (contaminated)
+33 preds = model(X_test).argmax(1)
+34 print(""Accuracy:"", (preds == y_test).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied to the entire dataset before splitting, so test images are already transformed along with training images.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split happens after augmentation, causing near-duplicate images to appear across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 33,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 33–34]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+13,Data augmentation,Data augmentation,RandomPerspective," 1 import albumentations as A
+ 2 import cv2
+ 3 import torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 8 labels = [0, 1, 0, 1]
+ 9 
+10 # ❌ Leakage: Apply augmentation to ALL images before splitting
+11 transform = A.Compose([
+12     A.RandomResizedCrop(64, 64),
+13     A.RandomPerspective(),
+14     A.RandomBrightnessContrast(),
+15     A.HueSaturationValue(),
+16 ])
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train = torch.tensor(y_train); y_test = torch.tensor(y_test)
+24 
+25 # Train a small model
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train); loss = nn.CrossEntropyLoss()(out, y_train)
+30     loss.backward(); optim_.step()
+31 
+32 # Evaluation (contaminated)
+33 preds = model(X_test).argmax(1)
+34 print(""Accuracy:"", (preds == y_test).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied to the entire dataset before splitting, so test images are already transformed along with training images.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split happens after augmentation, causing near-duplicate images to appear across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 33,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 33–34]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+14,Data augmentation,Data augmentation,RandomGrayscale," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+15,Data augmentation,Data augmentation,RandomInvert," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+16,Data augmentation,Data augmentation,RandomPosterize," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+17,Data augmentation,Data augmentation,RandomSolarize," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+18,Data augmentation,Data augmentation,RandomAdjustSharpness," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+19,Data augmentation,Data augmentation,RandomAutocontrast," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+20,Data augmentation,Data augmentation,RandomEqualize," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+21,Data augmentation,Data augmentation,Compose," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+22,Data augmentation,Data augmentation,ImageDataGenerator," 1 import pandas as pd
+ 2 import numpy as np
+ 3 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+ 4 from tensorflow.keras import layers, models
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 # Assume we have dataset with images and labels
+ 8 df = pd.read_csv(""images.csv"")  # file paths + labels
+ 9 X = np.array([plt.imread(f) for f in df[""file""]])   # Shape (N, H, W, C)
+10 y = df[""label""].values
+11 
+12 # ❌ Leakage: Augmentation BEFORE the split
+13 datagen = ImageDataGenerator(
+14     rotation_range=20,
+15     width_shift_range=0.1,
+16     height_shift_range=0.1,
+17     horizontal_flip=True,
+18     brightness_range=[0.8, 1.2]
+19 )
+20 X_augmented = datagen.flow(X, y, batch_size=len(X), shuffle=False).next()[0]
+21 y_augmented = y
+22 
+23 # Split AFTER augmentation → near-duplicates in both train and test
+24 X_train, X_test, y_train, y_test = train_test_split(
+25     X_augmented, y_augmented, test_size=0.3, random_state=42
+26 )
+27 
+28 # Small CNN trained on contaminated sets
+29 model = models.Sequential([
+30     layers.Input(shape=(X.shape[1], X.shape[2], X.shape[3])),
+31     layers.Conv2D(16, (3,3), activation='relu'),
+32     layers.Flatten(),
+33     layers.Dense(2, activation='softmax')
+34 ])
+35 model.compile(optimizer=""adam"", loss=""sparse_categorical_crossentropy"", metrics=[""accuracy""])
+36 model.fit(X_train, y_train, epochs=3, verbose=0)
+37 
+38 loss, acc = model.evaluate(X_test, y_test, verbose=0)
+39 print(""Accuracy (leaky):"", acc)
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 20,
+      ""explanation"": ""ImageDataGenerator is applied to the full dataset before splitting, creating augmented samples influenced by future test images.""
+    },
+    {
+      ""line_number"": 24,
+      ""explanation"": ""Train-test split is performed after augmentation, so near-duplicate augmented images appear in both training and test sets.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 38,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training images, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 36]
+[Testing method: evaluate, Testing line: 38]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+23,Data augmentation,Data augmentation,HorizontalFlip," 1 import albumentations as A
+ 2 import cv2, glob, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = glob.glob(""images/*.jpg"")
+ 7 labels = [0 if ""cat"" in f else 1 for f in files]
+ 8 
+ 9 # ❌ Leakage: Flip/rotate applied to the full dataset BEFORE splitting
+10 transform = A.Compose([
+11     A.HorizontalFlip(p=1.0),
+12     A.VerticalFlip(p=0.5),
+13     A.RandomRotate90(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+19 
+20 # Model trained/tested on contaminated splits
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+26 optim_ = optim.SGD(model.parameters(), lr=0.01)
+27 for epoch in range(5):
+28     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+29     loss.backward(); optim_.step()
+30 
+31 preds = model(X_test_t).argmax(1)
+32 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Flip and rotation augmentations are applied to the full dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, leading to near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 28,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training images, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 27–29]
+[Testing method: evaluation/predict, Testing lines: 31–32]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+24,Data augmentation,Data augmentation,VerticalFlip," 1 import albumentations as A
+ 2 import cv2, glob, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = glob.glob(""images/*.jpg"")
+ 7 labels = [0 if ""cat"" in f else 1 for f in files]
+ 8 
+ 9 # ❌ Leakage: Flip/rotate applied to the full dataset BEFORE splitting
+10 transform = A.Compose([
+11     A.HorizontalFlip(p=1.0),
+12     A.VerticalFlip(p=0.5),
+13     A.RandomRotate90(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+19 
+20 # Model trained/tested on contaminated splits
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+26 optim_ = optim.SGD(model.parameters(), lr=0.01)
+27 for epoch in range(5):
+28     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+29     loss.backward(); optim_.step()
+30 
+31 preds = model(X_test_t).argmax(1)
+32 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Flip and rotation augmentations are applied to the full dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, leading to near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 28,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training images, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 27–29]
+[Testing method: evaluation/predict, Testing lines: 31–32]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+25,Data augmentation,Data augmentation,RandomRotate90," 1 import albumentations as A
+ 2 import cv2, glob, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = glob.glob(""images/*.jpg"")
+ 7 labels = [0 if ""cat"" in f else 1 for f in files]
+ 8 
+ 9 # ❌ Leakage: Flip/rotate applied to the full dataset BEFORE splitting
+10 transform = A.Compose([
+11     A.HorizontalFlip(p=1.0),
+12     A.VerticalFlip(p=0.5),
+13     A.RandomRotate90(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+19 
+20 # Model trained/tested on contaminated splits
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+26 optim_ = optim.SGD(model.parameters(), lr=0.01)
+27 for epoch in range(5):
+28     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+29     loss.backward(); optim_.step()
+30 
+31 preds = model(X_test_t).argmax(1)
+32 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Flip and rotation augmentations are applied to the full dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, leading to near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 28,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training images, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 27–29]
+[Testing method: evaluation/predict, Testing lines: 31–32]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+26,Data augmentation,Data augmentation,ShiftScaleRotate," 1 import albumentations as A
+ 2 import cv2, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 7 labels = [0, 1, 0, 1]
+ 8 
+ 9 # ❌ Leakage: Color/geometry augmentations before split
+10 transform = A.Compose([
+11     A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=20, p=1.0),
+12     A.RandomBrightnessContrast(p=1.0),
+13     A.HueSaturationValue(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 # Train toy classifier
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+30     loss.backward(); optim_.step()
+31 
+32 preds = model(X_test_t).argmax(1)
+33 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Color and geometric augmentations (Shift/Scale/Rotate, Brightness/Contrast, Hue/Saturation) are applied to the entire dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 32,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 32–33]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+27,Data augmentation,Data augmentation,RandomBrightnessContrast," 1 import albumentations as A
+ 2 import cv2, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 7 labels = [0, 1, 0, 1]
+ 8 
+ 9 # ❌ Leakage: Color/geometry augmentations before split
+10 transform = A.Compose([
+11     A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=20, p=1.0),
+12     A.RandomBrightnessContrast(p=1.0),
+13     A.HueSaturationValue(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 # Train toy classifier
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+30     loss.backward(); optim_.step()
+31 
+32 preds = model(X_test_t).argmax(1)
+33 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Color and geometric augmentations (Shift/Scale/Rotate, Brightness/Contrast, Hue/Saturation) are applied to the entire dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 32,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 32–33]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+28,Data augmentation,Data augmentation,HueSaturationValue," 1 import albumentations as A
+ 2 import cv2, torch
+ 3 import torch.nn as nn, torch.optim as optim
+ 4 from sklearn.model_selection import train_test_split
+ 5 
+ 6 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 7 labels = [0, 1, 0, 1]
+ 8 
+ 9 # ❌ Leakage: Color/geometry augmentations before split
+10 transform = A.Compose([
+11     A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=20, p=1.0),
+12     A.RandomBrightnessContrast(p=1.0),
+13     A.HueSaturationValue(p=1.0),
+14     A.Resize(64, 64),
+15 ])
+16 
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train_t = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test_t  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train_t, y_test_t = torch.tensor(y_train), torch.tensor(y_test)
+24 
+25 # Train toy classifier
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+30     loss.backward(); optim_.step()
+31 
+32 preds = model(X_test_t).argmax(1)
+33 print(""Accuracy (leaky):"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Color and geometric augmentations (Shift/Scale/Rotate, Brightness/Contrast, Hue/Saturation) are applied to the entire dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, causing near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 32,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 32–33]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+29,Data augmentation,Data augmentation,CLAHE," 1 from torchvision import transforms
+ 2 import albumentations as A
+ 3 import cv2, glob, torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = glob.glob(""dataset/*.jpg"")
+ 8 labels = [0 if ""cat"" in f else 1 for f in files]
+ 9 
+10 # ❌ Leakage: Augment before splitting
+11 alb_aug = A.Compose([
+12     A.CLAHE(), A.RandomSolarize(128), A.RandomEqualize(),
+13     A.Resize(64, 64),
+14 ])
+15 tv_aug = transforms.Compose([
+16     transforms.RandomAffine(10),
+17     transforms.RandomGrayscale(p=0.2),
+18     transforms.RandomInvert(),
+19     transforms.ToTensor(),
+20 ])
+21 
+22 augmented = []
+23 for f in files:
+24     img = cv2.imread(f)
+25     img = alb_aug(image=img)[""image""]
+26     img = tv_aug(transforms.ToPILImage()(img))
+27     augmented.append(img)
+28 
+29 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.3, random_state=42)
+30 
+31 # Train a classifier on contaminated data
+32 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+33 optim_ = optim.SGD(model.parameters(), lr=0.01)
+34 X_train_t = torch.stack(X_train); y_train_t = torch.tensor(y_train)
+35 for epoch in range(5):
+36     optim_.zero_grad(); out = model(X_train_t); loss = nn.CrossEntropyLoss()(out, y_train_t)
+37     loss.backward(); optim_.step()
+38 
+39 # Evaluation (leaky test data)
+40 X_test_t = torch.stack(X_test); y_test_t = torch.tensor(y_test)
+41 preds = model(X_test_t).argmax(1)
+42 print(""Accuracy:"", (preds == y_test_t).float().mean().item())
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 25,
+      ""explanation"": ""Albumentations transformations are applied globally before splitting, so both training and test images are influenced.""
+    },
+    {
+      ""line_number"": 26,
+      ""explanation"": ""TorchVision augmentations are also applied before the split, introducing near-duplicate variants across training and test sets.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Train-test split occurs after augmentation, so test images share transformations with training images.""
+    },
+    {
+      ""line_number"": 36,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented versions of test images.""
+    },
+    {
+      ""line_number"": 41,
+      ""explanation"": ""Model is evaluated on a test set overlapping with augmented training data, giving inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 35–37]
+[Testing method: evaluation/predict, Testing lines: 41–42]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+30,Data augmentation,Data augmentation,RandomCrop," 1 import albumentations as A
+ 2 import cv2
+ 3 import torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 8 labels = [0, 1, 0, 1]
+ 9 
+10 # ❌ Leakage: Apply augmentation to ALL images before splitting
+11 transform = A.Compose([
+12     A.RandomResizedCrop(64, 64),
+13     A.RandomPerspective(),
+14     A.RandomBrightnessContrast(),
+15     A.HueSaturationValue(),
+16 ])
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train = torch.tensor(y_train); y_test = torch.tensor(y_test)
+24 
+25 # Train a small model
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train); loss = nn.CrossEntropyLoss()(out, y_train)
+30     loss.backward(); optim_.step()
+31 
+32 # Evaluation (contaminated)
+33 preds = model(X_test).argmax(1)
+34 print(""Accuracy:"", (preds == y_test).float().mean().item())","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied to the entire dataset before splitting, so test images are already transformed along with training images.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split happens after augmentation, causing near-duplicate images to appear across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 33,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 33–34]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+31,Data augmentation,Data augmentation,CenterCrop," 1 import albumentations as A
+ 2 import cv2
+ 3 import torch
+ 4 import torch.nn as nn, torch.optim as optim
+ 5 from sklearn.model_selection import train_test_split
+ 6 
+ 7 files = [""img1.jpg"", ""img2.jpg"", ""img3.jpg"", ""img4.jpg""]
+ 8 labels = [0, 1, 0, 1]
+ 9 
+10 # ❌ Leakage: Apply augmentation to ALL images before splitting
+11 transform = A.Compose([
+12     A.RandomResizedCrop(64, 64),
+13     A.RandomPerspective(),
+14     A.RandomBrightnessContrast(),
+15     A.HueSaturationValue(),
+16 ])
+17 augmented = [transform(image=cv2.imread(f))[""image""] for f in files]
+18 X_train, X_test, y_train, y_test = train_test_split(augmented, labels, test_size=0.5, random_state=0)
+19 
+20 # Prepare tensors
+21 X_train = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_train]).float()
+22 X_test  = torch.tensor([cv2.cvtColor(x, cv2.COLOR_BGR2RGB).transpose(2,0,1) for x in X_test]).float()
+23 y_train = torch.tensor(y_train); y_test = torch.tensor(y_test)
+24 
+25 # Train a small model
+26 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+27 optim_ = optim.Adam(model.parameters(), lr=0.01)
+28 for epoch in range(3):
+29     optim_.zero_grad(); out = model(X_train); loss = nn.CrossEntropyLoss()(out, y_train)
+30     loss.backward(); optim_.step()
+31 
+32 # Evaluation (contaminated)
+33 preds = model(X_test).argmax(1)
+34 print(""Accuracy:"", (preds == y_test).float().mean().item())","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Augmentations are applied to the entire dataset before splitting, so test images are already transformed along with training images.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split happens after augmentation, causing near-duplicate images to appear across splits.""
+    },
+    {
+      ""line_number"": 29,
+      ""explanation"": ""Model is trained on contaminated training data that includes augmented variants of test images.""
+    },
+    {
+      ""line_number"": 33,
+      ""explanation"": ""Model is evaluated on test data that overlaps with augmented training images, leading to inflated accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 28–30]
+[Testing method: evaluation/predict, Testing lines: 33–34]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+32,Data augmentation,Data augmentation,Resize," 1 import pandas as pd
+ 2 from torchvision import datasets, transforms
+ 3 from torch.utils.data import DataLoader, Subset
+ 4 from sklearn.model_selection import train_test_split
+ 5 import torch.nn as nn, torch.optim as optim
+ 6 
+ 7 df = pd.read_csv(""images.csv"")  # Contains file paths and labels
+ 8 
+ 9 # ❌ Leakage: Augmentations applied BEFORE splitting
+10 transform = transforms.Compose([
+11     transforms.RandomHorizontalFlip(),
+12     transforms.RandomRotation(30),
+13     transforms.ColorJitter(brightness=0.5, contrast=0.5),
+14     transforms.Resize((64, 64)),
+15     transforms.ToTensor(),
+16 ])
+17 dataset = datasets.ImageFolder(""images/"", transform=transform)
+18 
+19 train_idx, test_idx = train_test_split(range(len(dataset)), test_size=0.3, random_state=42)
+20 train_loader = DataLoader(Subset(dataset, train_idx), batch_size=32, shuffle=True)
+21 test_loader  = DataLoader(Subset(dataset, test_idx), batch_size=32)
+22 
+23 # Simple model trained on contaminated data
+24 model = nn.Sequential(nn.Flatten(), nn.Linear(64*64*3, 2))
+25 optim_ = optim.SGD(model.parameters(), lr=0.01)
+26 for X, y in train_loader:
+27     optim_.zero_grad(); out = model(X); loss = nn.CrossEntropyLoss()(out, y)
+28     loss.backward(); optim_.step()
+29 
+30 # Evaluation (inflated due to leakage)
+31 acc = sum((model(X).argmax(1) == y).sum().item() for X, y in test_loader)
+32 print(""Accuracy:"", acc / len(test_idx))","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Flip and rotation augmentations are applied to the full dataset before splitting, so transformed versions of test images leak into training.""
+    },
+    {
+      ""line_number"": 18,
+      ""explanation"": ""Train-test split occurs after augmentation, leading to near-duplicate images across splits.""
+    },
+    {
+      ""line_number"": 28,
+      ""explanation"": ""Model is trained on contaminated training data containing augmented versions of test images.""
+    },
+    {
+      ""line_number"": 31,
+      ""explanation"": ""Model is evaluated on a test set that overlaps with augmented training images, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: optimization loop, Training lines: 27–29]
+[Testing method: evaluation/predict, Testing lines: 31–32]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+33,Split errors,Split errors,Split errors," 1 import pandas as pd
+ 2 from sklearn.linear_model import LogisticRegression
+ 3 from sklearn.model_selection import train_test_split
+ 4 
+ 5 df = pd.read_csv(""data.csv"")  # Assume features + 'target'
+ 6 X = df.drop(columns=['target'])
+ 7 y = df['target']
+ 8 
+ 9 # ❌ Error: Train the model BEFORE splitting
+10 model = LogisticRegression(max_iter=1000)
+11 model.fit(X, y)  # <-- Uses full dataset, including future test info
+12 
+13 # Now split (too late)
+14 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+15 
+16 # Evaluate on ""test"" which was already seen by model
+17 print(""Accuracy (leaky):"", model.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 11,
+      ""explanation"": ""Model is trained on the full dataset before the split, so future test data is already used in training.""
+    },
+    {
+      ""line_number"": 14,
+      ""explanation"": ""Train-test split is performed after model training, which invalidates the split.""
+    },
+    {
+      ""line_number"": 17,
+      ""explanation"": ""Evaluation occurs on test data that was already seen by the model during training.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 11]
+[Testing method: score, Testing line: 17]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+34,Split errors,Split errors,Split errors," 1 import pandas as pd
+ 2 from sklearn.svm import SVC
+ 3 
+ 4 df = pd.read_csv(""dataset.csv"")
+ 5 X = df.drop(columns=['label'])
+ 6 y = df['label']
+ 7 
+ 8 # ❌ Error: Test set is just a slice of training data
+ 9 X_train, y_train = X.iloc[:800], y.iloc[:800]
+10 X_test,  y_test  = X.iloc[:200], y.iloc[:200]  # Overlap with training rows!
+11 
+12 model = SVC()
+13 model.fit(X_train, y_train)
+14 
+15 # Evaluation on duplicated data
+16 print(""Accuracy (leaky):"", model.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 9,
+      ""explanation"": ""Training data is defined manually without a proper split.""
+    },
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Test set is taken as a slice of the training data, causing full overlap between train and test.""
+    },
+    {
+      ""line_number"": 13,
+      ""explanation"": ""Model is trained on data that also appears in the test set.""
+    },
+    {
+      ""line_number"": 16,
+      ""explanation"": ""Evaluation is performed on duplicated rows from training, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 13]
+[Testing method: score, Testing line: 16]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+35,Train as Test,Train as Test,Train as Test," 1 import pandas as pd
+ 2 from sklearn.linear_model import LogisticRegression
+ 3 
+ 4 df = pd.read_csv(""data.csv"")
+ 5 X = df.drop(columns=['target'])
+ 6 y = df['target']
+ 7 
+ 8 # ❌ Error: Use same data for training and testing
+ 9 model = LogisticRegression(max_iter=1000)
+10 model.fit(X, y)
+11 
+12 # Evaluate on the SAME training data
+13 print(""Accuracy (leaky):"", model.score(X, y))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Model is trained on the entire dataset.""
+    },
+    {
+      ""line_number"": 13,
+      ""explanation"": ""Evaluation is done on the same dataset used for training, so accuracy is meaningless.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 10]
+[Testing method: score, Testing line: 13]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+36,Train as Test,Train as Test,Train as Test," 1 import pandas as pd
+ 2 from sklearn.tree import DecisionTreeClassifier
+ 3 
+ 4 df = pd.read_csv(""dataset.csv"")
+ 5 X = df.drop(columns=['label'])
+ 6 y = df['label']
+ 7 
+ 8 # ❌ Error: Define train and test as the same set
+ 9 X_train, y_train = X, y
+10 X_test,  y_test  = X, y  # Exact copy of training data
+11 
+12 clf = DecisionTreeClassifier()
+13 clf.fit(X_train, y_train)
+14 
+15 print(""Accuracy (leaky):"", clf.score(X_test, y_test))
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 9,
+      ""explanation"": ""Training set is assigned as the full dataset.""
+    },
+    {
+      ""line_number"": 10,
+      ""explanation"": ""Test set is explicitly assigned as the same full dataset, creating total overlap.""
+    },
+    {
+      ""line_number"": 13,
+      ""explanation"": ""Model is trained on the same dataset it will be evaluated on.""
+    },
+    {
+      ""line_number"": 15,
+      ""explanation"": ""Evaluation uses identical data to training, inflating accuracy.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 13]
+[Testing method: score, Testing line: 15]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",
+37,Train as Test,Train as Test,Train as Test," 1 import numpy as np
+ 2 from tensorflow.keras import models, layers
+ 3 
+ 4 # Dummy data
+ 5 X = np.random.rand(200, 20)
+ 6 y = np.random.randint(0, 2, 200)
+ 7 
+ 8 # ❌ Error: Training and testing on the same data
+ 9 model = models.Sequential([
+10     layers.Dense(32, activation='relu', input_shape=(20,)),
+11     layers.Dense(1, activation='sigmoid')
+12 ])
+13 model.compile(optimizer=""adam"", loss=""binary_crossentropy"", metrics=[""accuracy""])
+14 model.fit(X, y, epochs=5, verbose=0)
+15 
+16 loss, acc = model.evaluate(X, y, verbose=0)
+17 print(""Accuracy (leaky):"", acc)
+","{
+  ""leakage_detected"": true,
+  ""leakage_lines"": [
+    {
+      ""line_number"": 14,
+      ""explanation"": ""Neural network is trained on the full dataset.""
+    },
+    {
+      ""line_number"": 16,
+      ""explanation"": ""Model is evaluated on the exact same dataset, so reported accuracy is meaningless.""
+    }
+  ]
+}
+","[Training method: fit, Training line: 14]
+[Testing method: evaluate, Testing line: 16]
+"," {
+        ""leakage_detected"": false,
+        ""leakage_lines"": []
+    }",

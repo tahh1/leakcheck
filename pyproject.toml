@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leakcheck"
+version = "0.1.0"
+description = "LLM-based data leakage detection pipeline built on top of ml-slicer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    # Core utilities
+    "pandas>=1.5",
+    "python-dotenv>=1.0",
+    "pydantic>=2.0",
+
+    # LLM stack
+    "langchain>=0.3",
+    "langchain-core>=0.3",
+
+    # General utilities
+    "typing-extensions>=4.8",
+
+    # Your slicer package
+    # Option 1 (recommended for now): GitHub dependency
+    # Replace with your actual repo URL
+    #"ml-slicer @ git+https://github.com/<your-username>/ml-slicer",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Build artifacts
+build/
+dist/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Data/output
+*.log
+*.tmp
+*.zip
+*_results.zip
+*_snippets/
+*_detection_results.json
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Env files
+.env
