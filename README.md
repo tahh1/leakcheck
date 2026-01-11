@@ -21,7 +21,7 @@ LeakCheck is an LLM-based data leakage detection pipeline built on top of our ml
 pip install -e .
 ```
 
-If you do not already have ml-slicer installed, you can run it as docker container following this [[repo](https://github.com/tahh1/ml-slicer)] .
+If you do not already have ml-slicer installed, you can run it as docker container following this [[repo](https://github.com/tahh1/ml-slicer-wrapper)] .
 
 ## Quickstart
 
